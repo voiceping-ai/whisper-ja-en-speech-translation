@@ -19,7 +19,7 @@ import librosa
 import torch
 from transformers import WhisperForConditionalGeneration, WhisperProcessor
 
-MODEL_ID = "do-not-use-this-account-token/whisper-ja-en-speech-translation"
+MODEL_ID = "voiceping-ai/whisper-ja-en-speech-translation"
 
 DIRECTIONS = {
     "en2ja": {"language": "en", "label": "EN -> JA"},
