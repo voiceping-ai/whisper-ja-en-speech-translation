@@ -8,83 +8,142 @@ sdk_version: "6.5.1"
 app_file: app.py
 pinned: false
 license: apache-2.0
+language:
+  - en
+  - ja
+tags:
+  - whisper
+  - speech-translation
+  - distilled
+  - japanese
+  - english
+pipeline_tag: automatic-speech-recognition
 ---
 
 # Whisper JA-EN Speech Translation
 
-Bidirectional speech translation between Japanese and English using a distilled [Whisper](https://huggingface.co/openai/whisper-large-v2) model.
+Bidirectional speech translation between Japanese and English, built on a distilled [Whisper large-v2](https://huggingface.co/openai/whisper-large-v2) architecture.
 
-- **EN audio -> JA text**
-- **JA audio -> EN text**
+| Direction | Input | Output |
+|-----------|-------|--------|
+| EN -> JA | English audio | Japanese text |
+| JA -> EN | Japanese audio | English text |
 
-Model: [voiceping-ai/whisper-ja-en-speech-translation](https://huggingface.co/voiceping-ai/whisper-ja-en-speech-translation)
+## Model Details
 
-## How It Works
+### Architecture
 
-The model uses `forced_decoder_ids` to control the translation direction.
-Set `language` to the **source audio language** and `task="translate"`.
+This model is a **distilled** variant of [OpenAI Whisper large-v2](https://huggingface.co/openai/whisper-large-v2):
 
-> **Note:** Do not use the pipeline `task="translate"` parameter directly — Whisper's translate task
-> always targets English. Use `forced_decoder_ids` with `model.generate()` for reliable
-> bidirectional translation.
+| Component | Details |
+|-----------|---------|
+| Base architecture | Whisper large-v2 (distilled) |
+| Encoder layers | 32 (full, unchanged from large-v2) |
+| Decoder layers | 4 (reduced from 32) |
+| Hidden size (d_model) | 1280 |
+| Vocabulary size | 51,865 |
+| Mel spectrogram bins | 80 |
+| Max audio length | 30 seconds |
+| Max output tokens | 448 |
+| Total parameters | ~756M |
 
-## Installation
+The distilled architecture keeps the full 32-layer encoder for strong audio understanding while reducing the decoder from 32 to 4 layers for faster inference. This makes the model significantly faster than the full Whisper large-v2 while preserving translation quality.
+
+### Training
+
+The model was fine-tuned for bidirectional speech translation (EN<->JA) using paired audio-text translation data in both directions.
+
+**Training methodology:**
+
+- **Task**: Speech translation (`task="translate"`)
+- **Encoder**: Frozen during training (pre-trained representations preserved)
+- **Decoder**: Fine-tuned for translation output
+- **Optimizer**: AdamW
+- **Learning rate**: 2e-4 with cosine-with-restarts scheduler
+- **Epochs**: 20
+- **Batch size**: 72
+- **Label smoothing**: 0.1
+- **Gradient checkpointing**: Enabled
+- **Audio filtering**: Minimum 2 seconds duration
+- **Text normalization**: Applied during training (Japanese Kanji normalization, punctuation handling)
+
+### How Translation Direction Works
+
+Whisper's original `translate` task always outputs English. This model extends that capability by fine-tuning on **bidirectional** translation pairs, so the `translate` task can produce either Japanese or English depending on the source language token.
+
+The translation direction is controlled via `forced_decoder_ids`:
+
+- `language="en"` + `task="translate"` = EN audio -> **JA text**
+- `language="ja"` + `task="translate"` = JA audio -> **EN text**
+
+The `language` parameter specifies the **source audio language**, and the model outputs the translation in the opposite language.
+
+### Evaluation
+
+Evaluated on the [FLEURS](https://huggingface.co/datasets/google/fleurs) test set for both translation directions.
+
+Metrics are computed with language-appropriate text normalization:
+- **English**: BasicTextNormalizer (lowercase, remove punctuation/articles)
+- **Japanese**: Ginza tokenization with Kanji display-form normalization and Japanese punctuation removal
+
+## Usage
+
+### Installation
 
 ```bash
-pip install torch transformers librosa gradio
+pip install torch transformers librosa
 ```
-
-## Inference
 
 ### EN audio -> JA text
 
 ```python
 import torch
+import librosa
 from transformers import WhisperProcessor, WhisperForConditionalGeneration
 
-processor = WhisperProcessor.from_pretrained("voiceping-ai/whisper-ja-en-speech-translation")
-model = WhisperForConditionalGeneration.from_pretrained("voiceping-ai/whisper-ja-en-speech-translation")
+MODEL_ID = "voiceping-ai/whisper-ja-en-speech-translation"
+
+processor = WhisperProcessor.from_pretrained(MODEL_ID)
+model = WhisperForConditionalGeneration.from_pretrained(MODEL_ID)
 
 # Load audio (16kHz mono)
-import librosa
-audio, sr = librosa.load("audio.wav", sr=16000)
+audio, sr = librosa.load("english_audio.wav", sr=16000)
 
 input_features = processor(
     audio, sampling_rate=16000, return_tensors="pt"
 ).input_features
 
-# EN audio -> JA text
+# EN audio -> JA text: set language to source language
 forced_decoder_ids = processor.get_decoder_prompt_ids(
     language="en", task="translate"
 )
+model.config.forced_decoder_ids = forced_decoder_ids
 
 with torch.no_grad():
-    predicted_ids = model.generate(
-        input_features,
-        forced_decoder_ids=forced_decoder_ids,
-    )
+    predicted_ids = model.generate(input_features)
 
 print(processor.batch_decode(predicted_ids, skip_special_tokens=True)[0])
+# Example: "しかし、通信の速度が遅いため、西洋では二十五年から三十年ほど遅れをとることがあります。"
 ```
 
 ### JA audio -> EN text
 
 ```python
-# JA audio -> EN text
+# JA audio -> EN text: set language to source language
 forced_decoder_ids = processor.get_decoder_prompt_ids(
     language="ja", task="translate"
 )
+model.config.forced_decoder_ids = forced_decoder_ids
 
 with torch.no_grad():
-    predicted_ids = model.generate(
-        input_features,
-        forced_decoder_ids=forced_decoder_ids,
-    )
+    predicted_ids = model.generate(input_features)
 
 print(processor.batch_decode(predicted_ids, skip_special_tokens=True)[0])
 ```
 
-## Standalone Inference Script
+> **Note on `forced_decoder_ids`**: In newer versions of `transformers` (>=4.40), pass `forced_decoder_ids` via `model.config.forced_decoder_ids` rather than as a keyword argument to `model.generate()`.
+
+### Standalone Inference Script
 
 See [`inference.py`](inference.py) for a complete standalone script that handles audio file input, device selection, and both translation directions.
 
@@ -122,6 +181,14 @@ Predictions on [FLEURS](https://huggingface.co/datasets/google/fleurs) test set 
 | パリジャンは 自己中心的で横柄で失礼な人が多いと言われています | It is said to be a place where many people are treated unfairly, with a sense of self-centeredness. |
 | メインステージの音楽が終わっても フェスティバルには夜遅くまで演奏を流し続けるセクションがあるかもしれないことを覚えておいてください | Even after the main stage is over, there may still be sections where the music continues to be played. Please keep this in mind. |
 | 香港の最高の景色を見るには 島から出て九龍のウォーターフロントに向かいましょう | To enjoy the best scenery in Hong Kong, let's leave the island and head towards the waterfront of Kureon. |
+
+## Limitations
+
+- **Audio length**: Best performance on audio segments under 30 seconds
+- **Language pair**: Only supports EN<->JA translation (not general-purpose multilingual)
+- **Translation quality**: As a distilled model, quality may be lower than the full Whisper large-v2 on some inputs
+- **Domain**: Trained primarily on general-domain speech; specialized domains (medical, legal, etc.) may have lower accuracy
+- **No timestamps**: This model does not output timestamp tokens
 
 ## License
 
