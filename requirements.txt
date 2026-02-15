@@ -1,5 +1,5 @@
 torch
 transformers
-gradio
+huggingface_hub>=0.28.0
 librosa
 numpy

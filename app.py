@@ -56,10 +56,10 @@ def translate(audio, direction):
         audio_data, sampling_rate=16000, return_tensors="pt"
     ).input_features.to(device)
 
+    model.config.forced_decoder_ids = forced_decoder_ids
+
     with torch.no_grad():
-        predicted_ids = model.generate(
-            input_features, forced_decoder_ids=forced_decoder_ids
-        )
+        predicted_ids = model.generate(input_features)
 
     text = processor.batch_decode(predicted_ids, skip_special_tokens=True)[0]
     return text
@@ -86,11 +86,16 @@ demo = gr.Interface(
     ),
     article=(
         "This model uses `forced_decoder_ids` to control translation direction. "
-        "See the [model card](https://huggingface.co/do-not-use-this-account-token/"
+        "See the [model card](https://huggingface.co/voiceping-ai/"
         "whisper-ja-en-speech-translation) for more details."
     ),
-    allow_flagging="never",
+    examples=[
+        ["example_en.wav", "English -> Japanese"],
+        ["example_ja.wav", "Japanese -> English"],
+    ],
+    flagging_mode="never",
+    cache_examples=False,
 )
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(show_error=True)
