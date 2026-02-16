@@ -160,27 +160,37 @@ python inference.py audio.wav --direction en2ja --device cuda:0
 
 ## Example Predictions
 
-Predictions on [FLEURS](https://huggingface.co/datasets/google/fleurs) test set samples.
+Side-by-side comparison on [FLEURS](https://huggingface.co/datasets/google/fleurs) test set samples across three models:
+
+Quality scores rated on FLEURS test samples (1-5 scale: accuracy + fluency, scored by Claude).
+
+![Quality Scores](quality_scores.svg)
+
+| Model | Parameters | EN->JA | JA->EN | Speed (tok/s) |
+|-------|-----------|--------|--------|--------------|
+| [OpenAI Whisper large-v3](https://huggingface.co/openai/whisper-large-v3) | 1.55B | N/A (English-only output) | 3.6/5 | 51.0 |
+| [Meta SeamlessM4T v2 Large](https://huggingface.co/facebook/seamless-m4t-v2-large) | 1.50B | 3.8/5 | 4.4/5 | 48.6 |
+| **Whisper EN-JA Translation (ours)** | 756M | **3.4/5** | **3.4/5** | **212.1** |
 
 ### EN -> JA
 
-| Source (EN audio) | Prediction (JA text) |
-|---|---|
-| however due to the slow communication channels styles in the west could lag behind by 25 to 30 year | しかし、通信の速度が遅いため、西洋では二十五年から三十年ほど遅れをとることがあります。 |
-| all nouns alongside the word sie for you always begin with a capital letter even in the middle of a sentence | 世界中の言葉によれば、すべての言葉は、文の途中でも、たとえ一文の途中でも、常に大文字で始まるべきだとされています。 |
-| the cabbage juice changes color depending on how acidic or basic alkaline the chemical is | 化学物質の酸性やアルカリ性の程度によって、キャベツのジュースの色が変わります。 |
-| many people don't think about them as dinosaurs because they have feathers and can fly | 多くの人々は、恐竜とは思わない。なぜなら、恐竜には羽があり、飛ぶことができるからです。 |
-| the hospital has followed protocol for infection control including separating the patient from others to prevent possible infection of others | この病院は、他の病気の感染を防ぐために、患者を他の病気から分離するような感染のプロトコルを実施しています。 |
+| Source (EN audio) | [OpenAI Whisper large-v3](https://huggingface.co/openai/whisper-large-v3) | [Meta SeamlessM4T v2](https://huggingface.co/facebook/seamless-m4t-v2-large) | **Whisper EN-JA Translation (ours)** |
+|---|---|---|---|
+| however due to the slow communication channels styles in the west could lag behind by 25 to 30 year | N/A | しかし通信チャンネルが遅いため西洋のスタイルは25~30年遅れます | しかし、通信の速度が遅いため、西洋では二十五年から三十年ほど遅れをとることがあります。 |
+| all nouns alongside the word sie for you always begin with a capital letter even in the middle of a sentence | N/A | 単語の隣にあるすべての名詞は文の真ん中でも常に大文字で始まるように | 世界中の言葉によれば、すべての言葉は、文の途中でも、たとえ一文の途中でも、常に大文字で始まるべきだとされています。 |
+| the cabbage juice changes color depending on how acidic or basic alkaline the chemical is | N/A | キャベツジュースは,化学物質の酸性,基本アルカリ性に応じて色を変えます. | 化学物質の酸性やアルカリ性の程度によって、キャベツのジュースの色が変わります。 |
+| many people don't think about them as dinosaurs because they have feathers and can fly | N/A | 羽があって飛べるから 恐とは思わない人も多い | 多くの人々は、恐竜とは思わない。なぜなら、恐竜には羽があり、飛ぶことができるからです。 |
+| the hospital has followed protocol for infection control including separating the patient from others to prevent possible infection of others | N/A | 病院は感染制御のプロトコルに従っており他の感染を防ぐために患者を他の患者から分離することも含まれています | この病院は、他の病気の感染を防ぐために、患者を他の病気から分離するような感染のプロトコルを実施しています。 |
 
 ### JA -> EN
 
-| Source (JA audio) | Prediction (EN text) |
-|---|---|
-| バルセロナの公用語はカタルーニャ語とスペイン語です 約半数がカタルーニャ語を好み 大多数がカタルーニャ語を理解し ほぼ全員がスペイン語を知っています | The official languages used in Barcelona are Catalan and Spanish. Approximately half of the people prefer Catalan, while the majority of them prefer Catalan. Almost everyone knows Spanish. |
-| 群島や湖では 必ずしもヨットは必要ありません | On the islands or lakes, yachts are not necessary at all. |
-| パリジャンは 自己中心的で横柄で失礼な人が多いと言われています | It is said to be a place where many people are treated unfairly, with a sense of self-centeredness. |
-| メインステージの音楽が終わっても フェスティバルには夜遅くまで演奏を流し続けるセクションがあるかもしれないことを覚えておいてください | Even after the main stage is over, there may still be sections where the music continues to be played. Please keep this in mind. |
-| 香港の最高の景色を見るには 島から出て九龍のウォーターフロントに向かいましょう | To enjoy the best scenery in Hong Kong, let's leave the island and head towards the waterfront of Kureon. |
+| Source (JA audio) | [OpenAI Whisper large-v3](https://huggingface.co/openai/whisper-large-v3) | [Meta SeamlessM4T v2](https://huggingface.co/facebook/seamless-m4t-v2-large) | **Whisper EN-JA Translation (ours)** |
+|---|---|---|---|
+| バルセロナの公用語はカタルーニャ語とスペイン語です 約半数がカタルーニャ語を好み 大多数がカタルーニャ語を理解し ほぼ全員がスペイン語を知っています | The Spanish and Catalan languages are the most common in Barcelona. Half of the people here like Catalan, and most of them understand Catalan, so almost everyone knows Spanish. | The official languages of Barcelona are Catalan and Spanish, with about half of the population speaking Catalan, and the majority of the population speaking Catalan, and almost all of them speaking Spanish. | The official languages used in Barcelona are Catalan and Spanish. Approximately half of the people prefer Catalan, while the majority of them prefer Catalan. Almost everyone knows Spanish. |
+| 群島や湖では 必ずしもヨットは必要ありません | You don't necessarily need a yacht for military islands or lakes. | You don't have to have a yacht on a group island or a lake. | On the islands or lakes, yachts are not necessary at all. |
+| パリジャンは 自己中心的で横柄で失礼な人が多いと言われています | Parisians are said to be self-centered, unruly and rude. | It's said that Parisians are self-centered, arrogant, and rude. | It is said to be a place where many people are treated unfairly, with a sense of self-centeredness. |
+| メインステージの音楽が終わっても フェスティバルには夜遅くまで演奏を流し続けるセクションがあるかもしれないことを覚えておいてください | Even if the music of the main stage is over, there may be a section where you can continue to play until the festival is over. Please remember that. | Even after the music on the main stage is over, remember that there may be a section at the festival that will continue to play until the night is over. | Even after the main stage is over, there may still be sections where the music continues to be played. Please keep this in mind. |
+| 香港の最高の景色を見るには 島から出て九龍のウォーターフロントに向かいましょう | To see the best scenery of Hong Kong, let's leave the island and head to the waterfront of Kowloon. | To see the best of Hong Kong, let's get off the island and head for the waterfront of Coulon. | To enjoy the best scenery in Hong Kong, let's leave the island and head towards the waterfront of Kureon. |
 
 ## Limitations
 
