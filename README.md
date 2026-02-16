@@ -20,81 +20,27 @@ tags:
 pipeline_tag: automatic-speech-recognition
 ---
 
-# Whisper JA-EN Speech Translation
+# Whisper EN-JA Speech Translation
 
-Bidirectional speech translation between Japanese and English, built on a distilled [Whisper large-v2](https://huggingface.co/openai/whisper-large-v2) architecture.
+Bidirectional EN<->JA speech translation at **212 tok/s** — 4x faster than Whisper large-v3 and SeamlessM4T v2, with only **756M parameters**.
 
-| Direction | Input | Output |
-|-----------|-------|--------|
-| EN -> JA | English audio | Japanese text |
-| JA -> EN | Japanese audio | English text |
+## Benchmark
 
-## Model Details
+![Quality Scores](quality_scores.svg)
 
-### Architecture
+| Model | Parameters | EN->JA | JA->EN | Speed (tok/s) |
+|-------|-----------|--------|--------|--------------|
+| [OpenAI Whisper large-v3](https://huggingface.co/openai/whisper-large-v3) | 1.55B | N/A (English-only output) | 3.6/5 | 51.0 |
+| [Meta SeamlessM4T v2 Large](https://huggingface.co/facebook/seamless-m4t-v2-large) | 1.50B | 3.8/5 | 4.4/5 | 48.6 |
+| **Whisper EN-JA Translation (ours)** | **756M** | **3.4/5** | **3.4/5** | **212.1** |
 
-This model is a **distilled** variant of [OpenAI Whisper large-v2](https://huggingface.co/openai/whisper-large-v2):
+> Quality scored on [FLEURS](https://huggingface.co/datasets/google/fleurs) test samples (1-5 scale: accuracy + fluency). Speed benchmarked on NVIDIA GPU with bfloat16.
 
-| Component | Details |
-|-----------|---------|
-| Base architecture | Whisper large-v2 (distilled) |
-| Encoder layers | 32 (full, unchanged from large-v2) |
-| Decoder layers | 4 (reduced from 32) |
-| Hidden size (d_model) | 1280 |
-| Vocabulary size | 51,865 |
-| Mel spectrogram bins | 80 |
-| Max audio length | 30 seconds |
-| Max output tokens | 448 |
-| Total parameters | ~756M |
-
-The distilled architecture keeps the full 32-layer encoder for strong audio understanding while reducing the decoder from 32 to 4 layers for faster inference. This makes the model significantly faster than the full Whisper large-v2 while preserving translation quality.
-
-### Training
-
-The model was fine-tuned for bidirectional speech translation (EN<->JA) using paired audio-text translation data in both directions.
-
-**Training methodology:**
-
-- **Task**: Speech translation (`task="translate"`)
-- **Encoder**: Frozen during training (pre-trained representations preserved)
-- **Decoder**: Fine-tuned for translation output
-- **Optimizer**: AdamW
-- **Learning rate**: 2e-4 with cosine-with-restarts scheduler
-- **Epochs**: 20
-- **Batch size**: 72
-- **Label smoothing**: 0.1
-- **Gradient checkpointing**: Enabled
-- **Audio filtering**: Minimum 2 seconds duration
-- **Text normalization**: Applied during training (Japanese Kanji normalization, punctuation handling)
-
-### How Translation Direction Works
-
-Whisper's original `translate` task always outputs English. This model extends that capability by fine-tuning on **bidirectional** translation pairs, so the `translate` task can produce either Japanese or English depending on the source language token.
-
-The translation direction is controlled via `forced_decoder_ids`:
-
-- `language="en"` + `task="translate"` = EN audio -> **JA text**
-- `language="ja"` + `task="translate"` = JA audio -> **EN text**
-
-The `language` parameter specifies the **source audio language**, and the model outputs the translation in the opposite language.
-
-### Evaluation
-
-Evaluated on the [FLEURS](https://huggingface.co/datasets/google/fleurs) test set for both translation directions.
-
-Metrics are computed with language-appropriate text normalization:
-- **English**: BasicTextNormalizer (lowercase, remove punctuation/articles)
-- **Japanese**: Ginza tokenization with Kanji display-form normalization and Japanese punctuation removal
-
-## Usage
-
-### Installation
+## Quick Start
 
 ```bash
 pip install torch transformers librosa
 ```
-
-### EN audio -> JA text
 
 ```python
 import torch
@@ -126,8 +72,6 @@ print(processor.batch_decode(predicted_ids, skip_special_tokens=True)[0])
 # Example: "しかし、通信の速度が遅いため、西洋では二十五年から三十年ほど遅れをとることがあります。"
 ```
 
-### JA audio -> EN text
-
 ```python
 # JA audio -> EN text: set language to source language
 forced_decoder_ids = processor.get_decoder_prompt_ids(
@@ -158,19 +102,64 @@ python inference.py audio_ja.wav --direction ja2en
 python inference.py audio.wav --direction en2ja --device cuda:0
 ```
 
-## Example Predictions
+## Model Details
 
-Side-by-side comparison on [FLEURS](https://huggingface.co/datasets/google/fleurs) test set samples across three models:
+### Architecture
 
-Quality scores rated on FLEURS test samples (1-5 scale: accuracy + fluency, scored by Claude).
+This model is a **distilled** variant of [OpenAI Whisper large-v2](https://huggingface.co/openai/whisper-large-v2):
 
-![Quality Scores](quality_scores.svg)
+| Component | Details |
+|-----------|---------|
+| Base architecture | Whisper large-v2 (distilled) |
+| Encoder layers | 32 (full, unchanged from large-v2) |
+| Decoder layers | 4 (reduced from 32) |
+| Hidden size (d_model) | 1280 |
+| Vocabulary size | 51,865 |
+| Mel spectrogram bins | 80 |
+| Max audio length | 30 seconds |
+| Max output tokens | 448 |
+| Total parameters | ~756M |
 
-| Model | Parameters | EN->JA | JA->EN | Speed (tok/s) |
-|-------|-----------|--------|--------|--------------|
-| [OpenAI Whisper large-v3](https://huggingface.co/openai/whisper-large-v3) | 1.55B | N/A (English-only output) | 3.6/5 | 51.0 |
-| [Meta SeamlessM4T v2 Large](https://huggingface.co/facebook/seamless-m4t-v2-large) | 1.50B | 3.8/5 | 4.4/5 | 48.6 |
-| **Whisper EN-JA Translation (ours)** | 756M | **3.4/5** | **3.4/5** | **212.1** |
+The distilled architecture keeps the full 32-layer encoder for strong audio understanding while reducing the decoder from 32 to 4 layers for faster inference. This makes the model significantly faster than the full Whisper large-v2 while preserving translation quality.
+
+### How Translation Direction Works
+
+Whisper's original `translate` task always outputs English. This model extends that capability by fine-tuning on **bidirectional** translation pairs, so the `translate` task can produce either Japanese or English depending on the source language token.
+
+The translation direction is controlled via `forced_decoder_ids`:
+
+- `language="en"` + `task="translate"` = EN audio -> **JA text**
+- `language="ja"` + `task="translate"` = JA audio -> **EN text**
+
+The `language` parameter specifies the **source audio language**, and the model outputs the translation in the opposite language.
+
+### Training
+
+The model was fine-tuned for bidirectional speech translation (EN<->JA) using paired audio-text translation data in both directions.
+
+- **Task**: Speech translation (`task="translate"`)
+- **Encoder**: Frozen during training (pre-trained representations preserved)
+- **Decoder**: Fine-tuned for translation output
+- **Optimizer**: AdamW
+- **Learning rate**: 2e-4 with cosine-with-restarts scheduler
+- **Epochs**: 20
+- **Batch size**: 72
+- **Label smoothing**: 0.1
+- **Gradient checkpointing**: Enabled
+- **Audio filtering**: Minimum 2 seconds duration
+- **Text normalization**: Applied during training (Japanese Kanji normalization, punctuation handling)
+
+### Evaluation
+
+Evaluated on the [FLEURS](https://huggingface.co/datasets/google/fleurs) test set for both translation directions.
+
+Metrics are computed with language-appropriate text normalization:
+- **English**: BasicTextNormalizer (lowercase, remove punctuation/articles)
+- **Japanese**: Ginza tokenization with Kanji display-form normalization and Japanese punctuation removal
+
+## Translation Examples
+
+Side-by-side comparison on [FLEURS](https://huggingface.co/datasets/google/fleurs) test set samples:
 
 ### EN -> JA
 
